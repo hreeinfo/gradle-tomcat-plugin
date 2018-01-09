@@ -26,6 +26,7 @@ import com.bmuschko.gradle.tomcat.internal.utils.TomcatThreadContextClassLoader
 import org.gradle.api.GradleException
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.file.FileCollection
+import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.*
 
 import java.util.concurrent.CountDownLatch
@@ -106,6 +107,15 @@ abstract class AbstractTomcatRun extends Tomcat {
     @InputFiles
     Iterable<File> additionalRuntimeResources = []
 
+    /**
+     * Defines additional web file or directories that are not provided by the web application.
+     * In task TomcatRunWar, you can add src/main/webapp as liveedit web resources.
+     *
+     * exclue: WEB-INF/lib, WEB-INF/classes, WEB-INF/web.xml, META-INF/
+     */
+    @InputFiles
+    Iterable<File> additionalWebResources = []
+    
     /**
      * Specifies the character encoding used to decode the URI bytes by the HTTP Connector. Defaults to "UTF-8".
      */
@@ -197,6 +207,14 @@ abstract class AbstractTomcatRun extends Tomcat {
      */
     @Input
     String ajpProtocol = 'org.apache.coyote.ajp.AjpProtocol'
+
+    /**
+     * Add context resources cacheSize: 0 =unchange, lt 0 =disable caching, gt 0 =max size cache
+     */
+    @Input
+    @Optional
+    Integer cacheSize = 0
+
 
     /**
      * The list of Tomcat users. Defaults to an empty list.
@@ -308,10 +326,54 @@ abstract class AbstractTomcatRun extends Tomcat {
         setWebApplicationContext()
         server.createLoader(Thread.currentThread().contextClassLoader)
 
+        // FIX: large project cache warning in tomcat.
+        if (getCacheSize() != 0) { // only config cacheSize when cacheSize!=0
+            if(server.metaClass.respondsTo(server, "setResourcesCacheSize", getCacheSize())){
+                server.metaClass.invokeMethod(server,"setResourcesCacheSize", getCacheSize())
+            } else {
+                logger.warn("CacheSize setting only support tomcat 8+")
+            }
+        }
+
         logger.info "Additional runtime resources classpath = ${getAdditionalRuntimeResources()}"
 
         getAdditionalRuntimeResources().each { file ->
             addWebappResource(file)
+        }
+
+        boolean awrWarning = false
+        Iterable<File> awrfiles = getAdditionalWebResources()
+        if (awrfiles) {
+            awrfiles.each { File awr ->
+                if (awr.exists()) {
+                    if (awr.isFile()) {
+                        if(server.metaClass.respondsTo(server, "addWebappAdditionalFile", "/", awr)) {
+                            server.metaClass.invokeMethod(server,"addWebappAdditionalFile", "/", awr)
+                        } else {
+                            awrWarning = true
+                        }
+                        logger.debug "\tadd web resource: /${awr.name}"
+                    } else {
+                        FileTree tree = project.fileTree(dir: awr).matching {
+                            exclude "**/WEB-INF/lib", "**/WEB-INF/classes", "**/WEB-INF/web.xml", "**/META-INF/"
+                        }
+
+                        tree.visit { element ->
+                            if(server.metaClass.respondsTo(server, "addWebappAdditionalFile", "/${element.relativePath.pathString}", element.file)) {
+                                server.metaClass.invokeMethod(server,"addWebappAdditionalFile", "/${element.relativePath.pathString}", element.file)
+                            } else {
+                                awrWarning = true
+                            }
+
+                            logger.debug "\tadd web resource: /${element.relativePath.pathString}"
+                        }
+                    }
+                }
+
+            }
+
+            if (awrWarning) logger.warn("additionalWebResources (Additional web resources) only support tomcat 8+")
+            else logger.info "Additional web resources = ${awrfiles}"
         }
 
         server.context.reloadable = getReloadable()

@@ -31,4 +31,19 @@ abstract class BaseTomcat8xPlusImpl extends BaseTomcat7xPlusImpl {
         Class resourceSetTypeClass = loadClass('org.apache.catalina.WebResourceRoot$ResourceSetType')
         resourceSetTypeClass.enumConstants.find { it.name() == name }
     }
+
+    void setResourcesCacheSize(int cacheSize) {
+        if (cacheSize > 0) {
+            context.resources.cacheMaxSize = cacheSize
+        } else if (cacheSize < 0) {
+            context.resources.cachingAllowed = false
+        }
+    }
+
+    protected void addWebappAdditionalFile(String webAppMountPoint, File file) {
+        if (file.exists()) {
+            context.resources.createWebResourceSet(getResourceSetType('PRE'),
+                    webAppMountPoint, file.toURI().toURL(), '/')
+        }
+    }
 }

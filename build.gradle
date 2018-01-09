@@ -15,9 +15,10 @@ apply plugin: 'org.ajoberstar.git-publish'
 
 allprojects {
     apply plugin: 'groovy'
+    apply plugin: 'maven'
     apply plugin: 'idea'
-    group = 'com.bmuschko'
-    version = '2.4.2'
+    group = 'com.hreeinfo'
+    version = '2.4.2.HREEINFO'
     defaultTasks 'clean', 'build', 'createAllDeliverables'
 }
 
@@ -128,13 +129,13 @@ publishing {
                 def root = asNode()
                 root.appendNode('name', 'Gradle Tomcat plugin')
                 root.appendNode('description', 'Gradle plugin supporting deployment of your web application to an embedded Tomcat web container.')
-                root.appendNode('url', 'https://github.com/bmuschko/gradle-tomcat-plugin')
-                root.appendNode('inceptionYear', '2010')
+                root.appendNode('url', 'https://github.com/hreeinfo/gradle-tomcat-plugin')
+                root.appendNode('inceptionYear', '2018')
 
                 def scm = root.appendNode('scm')
-                scm.appendNode('url', 'https://github.com/bmuschko/gradle-tomcat-plugin')
-                scm.appendNode('connection', 'scm:https://bmuschko@github.com/bmuschko/gradle-tomcat-plugin.git')
-                scm.appendNode('developerConnection', 'scm:git://github.com/bmuschko/gradle-tomcat-plugin.git')
+                scm.appendNode('url', 'https://github.com/hreeinfo/gradle-tomcat-plugin')
+                scm.appendNode('connection', 'scm:https://xingxiuyi@github.com/hreeinfo/gradle-tomcat-plugin.git')
+                scm.appendNode('developerConnection', 'scm:git://github.com/hreeinfo/gradle-tomcat-plugin.git')
 
                 def license = root.appendNode('licenses').appendNode('license')
                 license.appendNode('name', 'The Apache Software License, Version 2.0')
@@ -143,9 +144,9 @@ publishing {
 
                 def developers = root.appendNode('developers')
                 def bmuschko = developers.appendNode('developer')
-                bmuschko.appendNode('id', 'bmuschko')
-                bmuschko.appendNode('name', 'Benjamin Muschko')
-                bmuschko.appendNode('email', 'benjamin.muschko@gmail.com')
+                bmuschko.appendNode('id', 'xingxiuyi')
+                bmuschko.appendNode('name', 'Xing Xiuyi')
+                bmuschko.appendNode('email', 'xingxiuyi@gmail.com')
             }
         }
     }
@@ -158,25 +159,22 @@ bintray {
     publish = true
 
     pkg {
-        repo = 'gradle-plugins'
-        name = 'com.bmuschko:gradle-tomcat-plugin'
+        userOrg = 'hreeinfo'
+        repo = 'plugins'
+        name = 'gradle-tomcat-plugin'
         desc = 'Gradle plugin supporting deployment of your web application to an embedded Tomcat web container.'
-        websiteUrl = "https://github.com/bmuschko/${project.name}"
-        issueTrackerUrl = "https://github.com/bmuschko/${project.name}/issues"
-        vcsUrl = "https://github.com/bmuschko/${project.name}.git"
+        websiteUrl = "https://github.com/hreeinfo/${project.name}"
+        issueTrackerUrl = "https://github.com/hreeinfo/${project.name}/issues"
+        vcsUrl = "https://github.com/hreeinfo/${project.name}.git"
         licenses = ['Apache-2.0']
         labels = ['gradle', 'tomcat', 'web', 'container', 'embedded']
         publicDownloadNumbers = true
 
         version {
             vcsTag = "v$project.version"
-            attributes = ['gradle-plugin': ["com.bmuschko.tomcat:${project.group}:${project.name}",
-                                            "com.bmuschko.tomcat-base:${project.group}:${project.name}"]]
+            attributes = ['gradle-plugin': ["com.hreeinfo.tomcat-base:${project.group}:${project.name}", 
+                                            "com.hreeinfo.tomcat:${project.group}:${project.name}"]]
 
-            gpg {
-                sign = true
-                passphrase = project.hasProperty('gpgPassphrase') ? project.getProperty('gpgPassphrase') : null
-            }
 
             mavenCentralSync {
                 sync = true
@@ -188,30 +186,3 @@ bintray {
     }
 }
 
-gitPublish {
-    repoUri = 'git@github.com:bmuschko/gradle-tomcat-plugin.git'
-    branch = 'gh-pages'
-
-    contents {
-        from(aggregateGroovydocs.outputs.files) {
-            into 'docs/groovydoc'
-        }
-    }
-}
-
-
-idea.project {
-    jdkName = '1.8'
-
-    ipr.withXml { provider ->
-        def node = provider.asNode()
-
-        // Use GIT
-        def vcsConfig = node.component.find { it.'@name' == 'VcsDirectoryMappings' }
-        vcsConfig.mapping[0].'@vcs' = 'Git'
-
-        // Set Gradle home
-        def gradleSettings = node.appendNode('component', [name: 'GradleSettings'])
-        gradleSettings.appendNode('option', [name: 'SDK_HOME', value: gradle.gradleHomeDir])
-    }
-}
